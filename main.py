@@ -31,6 +31,12 @@ def get_delta_time():
 def get_fixed_delta_time():
     return 1 / FPS
 
+def set_image_color(image, color):
+    for x in range(image.get_width()):
+        for y in range(image.get_height()):
+            color.a = image.get_at((x, y)).a
+            image.set_at((x, y), color)
+
 class Player():
     SIZE = 50
     COLOR = (100, 100, 100)
@@ -68,10 +74,18 @@ class Spike():
     SPIKE_SPEED = 5
 
     def __init__(self, left, top):
-        self.rect = pygame.Rect(left, top, self.SIZE, self.SIZE)
+        self.sprite = pygame.image.load("assets/spike.png")
+        self.sprite = pygame.transform.scale(self.sprite, (self.SIZE, self.SIZE))
+        set_image_color(self.sprite, pygame.Color(self.COLOR))
+
+        self.rect = self.sprite.get_rect()
+        self.rect.left = left
+        self.rect.top = top
 
     def update(self):
         self.rect.left -= self.SPIKE_SPEED
+
+        if self.rect.left < -self.SIZE: self.rect.left = WINDOW_WIDTH
 
 floor = pygame.Rect(0, WINDOW_HEIGHT - 150, WINDOW_WIDTH, 150)
 
@@ -86,7 +100,7 @@ while game_running:
     accumulator += delta_time
 
     if accumulator < game_update_rate: continue
-    else: accumulator = 0
+    else: accumulator -= game_update_rate
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT: game_running = False
@@ -99,7 +113,7 @@ while game_running:
     pygame.draw.rect(window, Player.COLOR, player.rect)
 
     spike.update()
-    pygame.draw.rect(window, Spike.COLOR, spike.rect)
+    window.blit(spike.sprite, spike.rect)
 
     pygame.display.flip()
 
