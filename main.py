@@ -1,25 +1,41 @@
+import time
 import pygame
 pygame.init()
 
+# Window setup
 WINDOW_WIDTH, WINDOW_HEIGHT = 1280, 720
 TITLE = "Pygame Dash"
 window = pygame.display.set_mode(size=(WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption(TITLE)
 
-FPS = 60
-clock = pygame.time.Clock()
+# Fixed update system
+# I'm doing my own fixed update system because for some reason that I don't exactly understand I get 
+# smoother movement of the spikes using this system rather than using the built in one? It still has
+# occasional jitters but for the most part it looks smooth.
+FPS = 144  # Doing 144 instead of standard 60 because that's what my monitor runs at.
+game_update_rate = 1 / FPS
+accumulator = 0
+previous_time = time.time()
 
 BACKGROUND_COLOR = (225, 225, 225)
 FLOOR_COLOR = (25, 25, 25)
 
+# Utility functions
 def get_delta_time():
-    return 1/FPS
+    global previous_time
+    current_time = time.time()
+    delta_time = current_time - previous_time
+    previous_time = current_time
+    return delta_time
+
+def get_fixed_delta_time():
+    return 1 / FPS
 
 class Player():
     SIZE = 50
     COLOR = (100, 100, 100)
-    JUMP_FORCE = 25
-    GRAVITY_FORCE = 75
+    JUMP_FORCE = 10
+    GRAVITY_FORCE = 35
 
     def __init__(self, left, top):
         self.rect = pygame.Rect(left, top, self.SIZE, self.SIZE)
@@ -42,17 +58,35 @@ class Player():
         keys_pressed = pygame.key.get_pressed()
         if keys_pressed[pygame.K_SPACE] and self.is_grounded: self.jump() 
 
-        self.y_velocity -= self.GRAVITY_FORCE * get_delta_time()
+        self.y_velocity -= self.GRAVITY_FORCE * get_fixed_delta_time()
         self.is_grounded = self.check_for_ground()
         if not self.is_grounded: self.rect.top -= self.y_velocity 
+
+class Spike():
+    SIZE = 50
+    COLOR = FLOOR_COLOR
+    SPIKE_SPEED = 5
+
+    def __init__(self, left, top):
+        self.rect = pygame.Rect(left, top, self.SIZE, self.SIZE)
+
+    def update(self):
+        self.rect.left -= self.SPIKE_SPEED
 
 floor = pygame.Rect(0, WINDOW_HEIGHT - 150, WINDOW_WIDTH, 150)
 
 player = Player(125, floor.top - Player.SIZE)
 
+spike = Spike(WINDOW_WIDTH - Spike.SIZE * 2, floor.top - Spike.SIZE)
+
 game_running = True
 while game_running:
-    clock.tick(FPS)
+    # Updates game once 
+    delta_time = get_delta_time()
+    accumulator += delta_time
+
+    if accumulator < game_update_rate: continue
+    else: accumulator = 0
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT: game_running = False
@@ -63,6 +97,9 @@ while game_running:
 
     player.update()
     pygame.draw.rect(window, Player.COLOR, player.rect)
+
+    spike.update()
+    pygame.draw.rect(window, Spike.COLOR, spike.rect)
 
     pygame.display.flip()
 
