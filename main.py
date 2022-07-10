@@ -1,5 +1,3 @@
-from re import L
-from sre_constants import JUMP
 import pygame
 pygame.init()
 
@@ -20,13 +18,21 @@ def get_delta_time():
 class Player():
     SIZE = 50
     COLOR = (100, 100, 100)
-    JUMP_FORCE = 10
-
+    JUMP_FORCE = 25
+    GRAVITY_FORCE = 75
 
     def __init__(self, left, top):
         self.rect = pygame.Rect(left, top, self.SIZE, self.SIZE)
         self.is_grounded = True
         self.y_velocity = 0
+
+    def check_for_ground(self):
+        if self.rect.bottom - self.y_velocity > floor.top:
+            self.rect.bottom = floor.top
+            self.y_velocity = 0
+            return True
+        
+        return False
 
     def jump(self):
         self.is_grounded = False
@@ -34,11 +40,15 @@ class Player():
 
     def update(self):
         keys_pressed = pygame.key.get_pressed()
-        if keys_pressed[pygame.K_SPACE] and self.is_grounded: self.jump()  
+        if keys_pressed[pygame.K_SPACE] and self.is_grounded: self.jump() 
+
+        self.y_velocity -= self.GRAVITY_FORCE * get_delta_time()
+        self.is_grounded = self.check_for_ground()
+        if not self.is_grounded: self.rect.top -= self.y_velocity 
 
 floor = pygame.Rect(0, WINDOW_HEIGHT - 150, WINDOW_WIDTH, 150)
 
-player = Player(100, floor.top - Player.SIZE)
+player = Player(125, floor.top - Player.SIZE)
 
 game_running = True
 while game_running:
