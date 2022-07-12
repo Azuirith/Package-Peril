@@ -31,12 +31,6 @@ def get_delta_time():
 def get_fixed_delta_time():
     return 1 / FPS
 
-def set_image_color(image, color):
-    for x in range(image.get_width()):
-        for y in range(image.get_height()):
-            color.a = image.get_at((x, y)).a
-            image.set_at((x, y), color)
-
 class Player():
     SIZE = 50
     COLOR = (100, 100, 100)
@@ -46,6 +40,7 @@ class Player():
     def __init__(self, left, top):
         self.rect = pygame.Rect(left, top, self.SIZE, self.SIZE)
         self.is_grounded = True
+        self.has_been_hit = False
         self.y_velocity = 0
 
     def check_for_ground(self):
@@ -61,6 +56,8 @@ class Player():
         self.y_velocity += self.JUMP_FORCE
 
     def update(self):
+        if self.has_been_hit: return
+
         keys_pressed = pygame.key.get_pressed()
         if keys_pressed[pygame.K_SPACE] and self.is_grounded: self.jump() 
 
@@ -68,30 +65,29 @@ class Player():
         self.is_grounded = self.check_for_ground()
         if not self.is_grounded: self.rect.top -= self.y_velocity 
 
-class Spike():
-    SIZE = 50
+        if self.rect.colliderect(obstacle): self.has_been_hit = True
+
+class Obstacle():
+    WIDTH, HEIGHT = 50, 150
     COLOR = FLOOR_COLOR
     SPIKE_SPEED = 5
 
     def __init__(self, left, top):
-        self.sprite = pygame.image.load("assets/spike.png")
-        self.sprite = pygame.transform.scale(self.sprite, (self.SIZE, self.SIZE))
-        set_image_color(self.sprite, pygame.Color(self.COLOR))
-
-        self.rect = self.sprite.get_rect()
+        self.rect = pygame.Rect(left, top, self.WIDTH, self.HEIGHT)
         self.rect.left = left
         self.rect.top = top
 
     def update(self):
-        self.rect.left -= self.SPIKE_SPEED
+        if player.has_been_hit: return  
 
-        if self.rect.left < -self.SIZE: self.rect.left = WINDOW_WIDTH
+        self.rect.left -= self.SPIKE_SPEED
+        if self.rect.left < -self.WIDTH: self.rect.left = WINDOW_WIDTH
 
 floor = pygame.Rect(0, WINDOW_HEIGHT - 150, WINDOW_WIDTH, 150)
 
 player = Player(125, floor.top - Player.SIZE)
 
-spike = Spike(WINDOW_WIDTH - Spike.SIZE * 2, floor.top - Spike.SIZE)
+obstacle = Obstacle(WINDOW_WIDTH - Obstacle.WIDTH * 2, floor.top - Obstacle.HEIGHT)
 
 game_running = True
 while game_running:
@@ -112,8 +108,8 @@ while game_running:
     player.update()
     pygame.draw.rect(window, Player.COLOR, player.rect)
 
-    spike.update()
-    window.blit(spike.sprite, spike.rect)
+    obstacle.update()
+    pygame.draw.rect(window, Obstacle.COLOR, obstacle.rect)
 
     pygame.display.flip()
 
