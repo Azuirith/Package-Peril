@@ -74,13 +74,41 @@ class Player():
         self.is_grounded = self.check_for_ground()
         if not self.is_grounded: self.rect.top -= self.y_velocity 
 
-class BoxSpawner():
+class Box():
+    # Initializes the box with default values so that the method in the BoxHandler can customize the box
+    def __init__(self, speed):
+        self.sprite = None
+        self.rect = pygame.Rect(0, 0, 0, 0)
+        self.speed = speed
+
+    def update(self):
+        if player.has_been_hit: return  
+
+        self.rect.left -= self.speed
+        if self.rect.left < -self.rect.width: 
+            boxHandler.spawn_box()
+            boxHandler.boxes.remove(self)
+
+class BoxHandler():
+    BOX_BASE_SPEED = 5
+    BOX_MAX_SPEED = 10
+    SPEED_CHANGE_FREQUENCY = 5
+
     def __init__(self):
         self.boxes = []
+        self.current_box_speed = self.BOX_BASE_SPEED
+        self.boxes_since_frequency_changed = 0 
+        self.times_speed_changed = 0
 
     def spawn_box(self):
+        self.boxes_since_frequency_changed += 1
+        if self.boxes_since_frequency_changed >= self.SPEED_CHANGE_FREQUENCY:
+            self.times_speed_changed += 1
+            self.boxes_since_frequency_changed = 0
+            self.current_box_speed = self.BOX_MAX_SPEED * (self.times_speed_changed / (self.times_speed_changed + 10)) + self.BOX_BASE_SPEED  # 10 is an arbitrary number
+ 
         box_type = random.randint(1, 3)
-        newBox = Box()
+        newBox = Box(self.current_box_speed)
 
         match box_type:
             case 1:
@@ -101,29 +129,15 @@ class BoxSpawner():
         newBox.rect.top = floor.top - newBox.rect.height
         self.boxes.append(newBox)
 
-class Box():
-    BOX_SPEED = 5
-
-    # Initializes the box with default values so that the method in the BoxSpawner can customize the box
-    def __init__(self):
-        self.sprite = None
-        self.rect = pygame.Rect(0, 0, 0, 0)
-
-    def update(self):
-        if player.has_been_hit: return  
-
-        self.rect.left -= self.BOX_SPEED
-        if self.rect.left < -self.rect.width: 
-            boxSpawner.spawn_box()
-            boxSpawner.boxes.remove(self)
-
+# Set up game objects
 floor = pygame.Rect(0, WINDOW_HEIGHT - 150, WINDOW_WIDTH, 150)
 
-player = Player(125, floor.top - Player.SIZE)
+player = Player(125, floor.top - Player.HEIGHT)
 
-boxSpawner = BoxSpawner()
-boxSpawner.spawn_box()
+boxHandler = BoxHandler()
+boxHandler.spawn_box()
 
+# Start game loop
 game_running = True
 while game_running:
     # Limit framerate to specified FPS
@@ -143,7 +157,7 @@ while game_running:
     player.update()
     window.blit(player.sprite, player.rect)
 
-    currentBox = boxSpawner.boxes[0]
+    currentBox = boxHandler.boxes[0]
     currentBox.update()
     window.blit(currentBox.sprite, currentBox.rect)
 
