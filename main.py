@@ -84,7 +84,7 @@ class Box():
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = speed
 
-    def update(self, delta_time):
+    def update(self):
         if player.has_been_hit: return  
 
         self.rect.left -= self.speed
@@ -129,13 +129,13 @@ class BoxHandler():
             case 3: 
                 newBox.rect.width = 64
                 newBox.rect.height = 128
-                newBox.sprite = pygame.image.load("assets/sprites/square_box.png")
+                newBox.sprite = pygame.image.load("assets/sprites/tall_box.png")
 
             # Long box
             case 4:
                 newBox.rect.width = 160
                 newBox.rect.height = 64
-                newBox.sprite = pygame.image.load("assets/sprites/square_box.png")
+                newBox.sprite = pygame.image.load("assets/sprites/long_box.png")
         
         newBox.sprite = pygame.transform.scale(newBox.sprite, (newBox.rect.width, newBox.rect.height))
         newBox.rect.left = WINDOW_WIDTH
@@ -167,14 +167,14 @@ while game_running:
     window.fill(BACKGROUND_COLOR)
     pygame.draw.rect(window, FLOOR_COLOR, floor)
 
-    text_surface = FONT.render("Score- 0", True, ((255, 255, 255)))
+    text_surface = FONT.render("Score: 0", True, ((255, 255, 255)))
     window.blit(text_surface, (0, 0))
 
     player.update()
     window.blit(player.sprite, player.rect)
 
     currentBox = boxHandler.boxes[0]
-    currentBox.update(delta_time)
+    currentBox.update()
     window.blit(currentBox.sprite, currentBox.rect)
 
     if currentBox.rect.colliderect(player.rect): player.has_been_hit = True
