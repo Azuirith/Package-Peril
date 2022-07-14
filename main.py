@@ -1,3 +1,4 @@
+from msilib.schema import Font
 import random
 import time
 import pygame
@@ -10,11 +11,12 @@ window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption(TITLE)
 
 # Self-explanatory
-FONT = pygame.font.Font("assets/fonts/Teko-Medium.ttf", 48)
+FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 24)
+TEXT_OFFSET_FROM_SCREEN = 16
 
 # Fixed update system
 # I'm doing my own fixed update system because for some reason that I don't exactly understand I get 
-# smoother movement of the spikes using this system rather than using the built in one? It still has
+# smoother movement of the boxes using this system rather than using the built in one? It still has
 # occasional jitters but for the most part it looks smooth.
 FPS = 144  # Doing 144 instead of standard 60 because that's what my monitor runs at.
 game_update_rate = 1 / FPS
@@ -24,6 +26,7 @@ previous_time = time.time()
 # Define useful colors
 BACKGROUND_COLOR = (50, 50, 50)
 FLOOR_COLOR = (25, 25, 25)
+TEXT_COLOR = (255, 255, 255)
 
 # Utility functions
 def get_delta_time():
@@ -54,6 +57,8 @@ class Player():
         self.has_been_hit = False
         
         self.y_velocity = 0
+        
+        self.score = 1
 
     def check_for_ground(self):
         if self.rect.bottom - self.y_velocity > floor.top:
@@ -84,24 +89,30 @@ class Box():
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = speed
 
+        self.can_add_to_score = True
+
     def update(self):
         if player.has_been_hit: return  
 
         self.rect.left -= self.speed
         if self.rect.left < -self.rect.width: 
+            player.score += 1
             boxHandler.spawn_box()
             boxHandler.boxes.remove(self)
 
 class BoxHandler():
     BOX_BASE_SPEED = 5
-    BOX_MAX_SPEED = 10
-    SPEED_CHANGE_FREQUENCY = 8
+    BOX_MAX_SPEED = 15
+    SPEED_CHANGE_FREQUENCY = 5
 
     def __init__(self):
         self.boxes = []
         self.current_box_speed = self.BOX_BASE_SPEED
         self.boxes_since_frequency_changed = 0 
         self.times_speed_changed = 0
+
+    def calculate_boxes_until_speed_change(self):
+        return self.SPEED_CHANGE_FREQUENCY - self.boxes_since_frequency_changed
 
     def spawn_box(self):
         self.boxes_since_frequency_changed += 1
@@ -150,6 +161,28 @@ player = Player(125, floor.top - Player.HEIGHT)
 boxHandler = BoxHandler()
 boxHandler.spawn_box()
 
+# Game functions
+def draw_scene():
+    window.fill(BACKGROUND_COLOR)
+    pygame.draw.rect(window, FLOOR_COLOR, floor)
+
+def draw_UI():
+    score_text = FONT.render(f"Score: {player.score}", True, TEXT_COLOR)
+    window.blit(score_text, (TEXT_OFFSET_FROM_SCREEN, TEXT_OFFSET_FROM_SCREEN))
+
+    speed_increase_text = FONT.render(f"Boxes until speed increase: {boxHandler.calculate_boxes_until_speed_change()}", True, TEXT_COLOR)
+    window.blit(speed_increase_text, (TEXT_OFFSET_FROM_SCREEN, TEXT_OFFSET_FROM_SCREEN * 2 + score_text.get_size()[1]))
+
+def update_objects():
+    player.update()
+    window.blit(player.sprite, player.rect)
+
+    currentBox = boxHandler.boxes[0]
+    currentBox.update()
+    window.blit(currentBox.sprite, currentBox.rect)
+
+    if currentBox.rect.colliderect(player.rect): player.has_been_hit = True
+
 # Start game loop
 game_running = True
 while game_running:
@@ -163,21 +196,9 @@ while game_running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT: game_running = False
 
-    # Draw scene
-    window.fill(BACKGROUND_COLOR)
-    pygame.draw.rect(window, FLOOR_COLOR, floor)
-
-    text_surface = FONT.render("Score: 0", True, ((255, 255, 255)))
-    window.blit(text_surface, (0, 0))
-
-    player.update()
-    window.blit(player.sprite, player.rect)
-
-    currentBox = boxHandler.boxes[0]
-    currentBox.update()
-    window.blit(currentBox.sprite, currentBox.rect)
-
-    if currentBox.rect.colliderect(player.rect): player.has_been_hit = True
+    draw_scene()
+    draw_UI()
+    update_objects()
 
     pygame.display.flip()
 
