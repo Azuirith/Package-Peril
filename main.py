@@ -1,4 +1,3 @@
-from msilib.schema import Font
 import random
 import time
 import pygame
