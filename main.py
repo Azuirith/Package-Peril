@@ -5,9 +5,12 @@ pygame.init()
 
 # Window setup
 WINDOW_WIDTH, WINDOW_HEIGHT = 1280, 720
-TITLE = "Pygame Dash"
+TITLE = "Package Peril"
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption(TITLE)
+
+# Self-explanatory
+FONT = pygame.font.Font("assets/fonts/Teko-Medium.ttf", 48)
 
 # Fixed update system
 # I'm doing my own fixed update system because for some reason that I don't exactly understand I get 
@@ -40,7 +43,7 @@ class Player():
     GRAVITY_FORCE = 35
 
     def __init__(self, left, top):
-        self.sprite = pygame.image.load("assets/box1.png")
+        self.sprite = pygame.image.load("assets/sprites/square_box.png")
         self.sprite = pygame.transform.scale(self.sprite, (self.WIDTH, self.HEIGHT))
 
         self.rect = self.sprite.get_rect()
@@ -81,7 +84,7 @@ class Box():
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = speed
 
-    def update(self):
+    def update(self, delta_time):
         if player.has_been_hit: return  
 
         self.rect.left -= self.speed
@@ -92,7 +95,7 @@ class Box():
 class BoxHandler():
     BOX_BASE_SPEED = 5
     BOX_MAX_SPEED = 10
-    SPEED_CHANGE_FREQUENCY = 5
+    SPEED_CHANGE_FREQUENCY = 8
 
     def __init__(self):
         self.boxes = []
@@ -105,24 +108,34 @@ class BoxHandler():
         if self.boxes_since_frequency_changed >= self.SPEED_CHANGE_FREQUENCY:
             self.times_speed_changed += 1
             self.boxes_since_frequency_changed = 0
-            self.current_box_speed = self.BOX_MAX_SPEED * (self.times_speed_changed / (self.times_speed_changed + 10)) + self.BOX_BASE_SPEED  # 10 is an arbitrary number
+            self.current_box_speed = self.BOX_MAX_SPEED * (self.times_speed_changed / (self.times_speed_changed + self.BOX_MAX_SPEED)) + self.BOX_BASE_SPEED  # 10 is an arbitrary number
  
-        box_type = random.randint(1, 3)
+        box_type = random.randint(1, 4)
         newBox = Box(self.current_box_speed)
 
         match box_type:
+            # Medium box
             case 1:
                 newBox.rect.width = 96
                 newBox.rect.height = 96
-                newBox.sprite = pygame.image.load("assets/box1.png")
+                newBox.sprite = pygame.image.load("assets/sprites/square_box.png")
+            # Big box
             case 2:
                 newBox.rect.width = 128
                 newBox.rect.height = 128
-                newBox.sprite = pygame.image.load("assets/box1.png")
+                newBox.sprite = pygame.image.load("assets/sprites/square_box.png")
+
+            # Tall box
             case 3: 
                 newBox.rect.width = 64
                 newBox.rect.height = 128
-                newBox.sprite = pygame.image.load("assets/box1.png")
+                newBox.sprite = pygame.image.load("assets/sprites/square_box.png")
+
+            # Long box
+            case 4:
+                newBox.rect.width = 160
+                newBox.rect.height = 64
+                newBox.sprite = pygame.image.load("assets/sprites/square_box.png")
         
         newBox.sprite = pygame.transform.scale(newBox.sprite, (newBox.rect.width, newBox.rect.height))
         newBox.rect.left = WINDOW_WIDTH
@@ -154,11 +167,14 @@ while game_running:
     window.fill(BACKGROUND_COLOR)
     pygame.draw.rect(window, FLOOR_COLOR, floor)
 
+    text_surface = FONT.render("Score- 0", True, ((255, 255, 255)))
+    window.blit(text_surface, (0, 0))
+
     player.update()
     window.blit(player.sprite, player.rect)
 
     currentBox = boxHandler.boxes[0]
-    currentBox.update()
+    currentBox.update(delta_time)
     window.blit(currentBox.sprite, currentBox.rect)
 
     if currentBox.rect.colliderect(player.rect): player.has_been_hit = True
