@@ -1,12 +1,7 @@
 import random
 import time
 import pygame
-
 pygame.init()
-
-# Fixed update system
-# Doing a custom fixed update system to avoid stuttering with the movement of the boxes
-previous_time = time.time()
 
 class Game():
     # Window configuration
@@ -22,7 +17,7 @@ class Game():
     FPS = 144
     UPDATE_RATE = 1 / FPS
 
-    # Sprite loading
+    # Sprite initialization
     SQUARE_BOX_SPRITE = pygame.image.load("assets/sprites/square_box.png")
     LONG_BOX_SPRITE = pygame.image.load("assets/sprites/long_box.png")
     TALL_BOX_SPRITE = pygame.image.load("assets/sprites/tall_box.png")
@@ -41,11 +36,12 @@ class Game():
         self.running = True
         self.accumulator = 0
 
+        self.previous_time = time.time()  # Used for the get_delta_time method
+
     def get_delta_time(self):
-        global previous_time
         current_time = time.time()
-        delta_time = current_time - previous_time
-        previous_time = current_time
+        delta_time = current_time - self.previous_time
+        self.previous_time = current_time
         return delta_time
 
     def create_window(self):
@@ -215,7 +211,6 @@ class BoxHandler():
 game = Game()
 game.initialize()
 
-# Start game loop
 while game.running:
     delta_time = game.get_delta_time()
     game.accumulator += delta_time
