@@ -8,6 +8,7 @@ WINDOW_WIDTH, WINDOW_HEIGHT = 1280, 720
 TITLE = "Package Peril"
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption(TITLE)
+pygame.display.set_icon(pygame.image.load("assets/sprites/square_box.png"))
 
 # Self-explanatory
 FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 24)
