@@ -1,45 +1,106 @@
 import random
 import time
 import pygame
+
 pygame.init()
 
-# Window setup
-WINDOW_WIDTH, WINDOW_HEIGHT = 1280, 720
-TITLE = "Package Peril"
-window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-pygame.display.set_caption(TITLE)
-pygame.display.set_icon(pygame.image.load("assets/sprites/square_box.png"))
-
-# Self-explanatory
-FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 24)
-TEXT_OFFSET_FROM_SCREEN = 16
-
 # Fixed update system
-# I'm doing my own fixed update system because for some reason that I don't exactly understand I get 
-# smoother movement of the boxes using this system rather than using the built in one? It still has
-# occasional jitters but for the most part it looks smooth.
-FPS = 144  # Doing 144 instead of standard 60 because that's what my monitor runs at.
-game_update_rate = 1 / FPS
-accumulator = 0
+# Doing a custom fixed update system to avoid stuttering with the movement of the boxes
 previous_time = time.time()
 
-# Define useful colors
-BACKGROUND_COLOR = (50, 50, 50)
-FLOOR_COLOR = (25, 25, 25)
-TEXT_COLOR = (255, 255, 255)
+class Game():
+    # Window configuration
+    WINDOW_WIDTH = 1280
+    WINDOW_HEIGHT = 720
+    TITLE = "Package Peril"
 
-# Utility functions
-def get_delta_time():
-    global previous_time
-    current_time = time.time()
-    delta_time = current_time - previous_time
-    previous_time = current_time
-    return delta_time
+    # Text configuration
+    FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 24)
+    TEXT_OFFSET_FROM_WINDOW = 16
 
-def get_fixed_delta_time():
-    return 1 / FPS
+    # Update rate configuration
+    FPS = 144
+    UPDATE_RATE = 1 / FPS
 
-# Define game classes
+    # Sprite loading
+    SQUARE_BOX_SPRITE = pygame.image.load("assets/sprites/square_box.png")
+    LONG_BOX_SPRITE = pygame.image.load("assets/sprites/long_box.png")
+    TALL_BOX_SPRITE = pygame.image.load("assets/sprites/tall_box.png")
+
+    # Color configuration
+    BACKGROUND_COLOR = (50, 50, 50)
+    FLOOR_COLOR = (25, 25, 25)
+    TEXT_COLOR = (255, 255, 255)
+
+    def __init__(self):
+        self.window = self.create_window()
+        self.floor = self.create_floor()
+        self.player = self.create_player()
+        self.box_handler = self.create_box_handler()
+
+        self.running = True
+        self.accumulator = 0
+
+    def get_delta_time(self):
+        global previous_time
+        current_time = time.time()
+        delta_time = current_time - previous_time
+        previous_time = current_time
+        return delta_time
+
+    def create_window(self):
+        window = pygame.display.set_mode((self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+        pygame.display.set_caption(self.TITLE)
+        pygame.display.set_icon(self.SQUARE_BOX_SPRITE)
+        return window
+
+    def create_floor(self):
+        floor = pygame.Rect(0, self.WINDOW_HEIGHT - 150, self.WINDOW_WIDTH, 150)
+        return floor
+
+    def create_player(self):
+        player = Player(125, self.floor.top - Player.HEIGHT)
+        return player
+    
+    def create_box_handler(self):
+        box_handler = BoxHandler()
+        return box_handler
+
+    def draw_scene(self):
+        self.window.fill(self.BACKGROUND_COLOR)
+        pygame.draw.rect(self.window, self.FLOOR_COLOR, self.floor)
+
+    def draw_objects(self):
+        self.window.blit(self.player.sprite, self.player.rect)
+        self.window.blit(self.box_handler.boxes[0].sprite, self.box_handler.boxes[0].rect)
+
+    def draw_UI(self):
+        score_text = self.FONT.render(f"Score: {self.player.score}", True, self.TEXT_COLOR)
+        self.window.blit(score_text, (self.TEXT_OFFSET_FROM_WINDOW, self.TEXT_OFFSET_FROM_WINDOW))
+
+        speed_increase_text = self.FONT.render(f"Boxes until speed increase: {self.box_handler.calculate_boxes_until_speed_change()}", True, self.TEXT_COLOR)
+        self.window.blit(speed_increase_text, (self.TEXT_OFFSET_FROM_WINDOW, self.TEXT_OFFSET_FROM_WINDOW * 2 + score_text.get_size()[1]))
+
+    def update_objects(self):
+        if self.player.has_been_hit: return
+
+        self.player.update()
+
+        currentBox = self.box_handler.boxes[0]
+        currentBox.update()
+        if currentBox.rect.colliderect(self.player.rect): self.player.has_been_hit = True
+
+    def initialize(self):
+        self.box_handler.spawn_box()
+
+    def update(self):
+        self.draw_scene()
+        self.draw_UI()
+        self.update_objects()
+        self.draw_objects()
+
+        pygame.display.flip()
+
 class Player():
     WIDTH, HEIGHT = 64, 64
     JUMP_FORCE = 10
@@ -61,8 +122,8 @@ class Player():
         self.score = 1
 
     def check_for_ground(self):
-        if self.rect.bottom - self.y_velocity > floor.top:
-            self.rect.bottom = floor.top
+        if self.rect.bottom - self.y_velocity > game.floor.top:
+            self.rect.bottom = game.floor.top
             self.y_velocity = 0
             return True
         
@@ -78,7 +139,7 @@ class Player():
         keys_pressed = pygame.key.get_pressed()
         if keys_pressed[pygame.K_SPACE] and self.is_grounded: self.jump() 
 
-        self.y_velocity -= self.GRAVITY_FORCE * get_fixed_delta_time()
+        self.y_velocity -= self.GRAVITY_FORCE * game.UPDATE_RATE
         self.is_grounded = self.check_for_ground()
         if not self.is_grounded: self.rect.top -= self.y_velocity 
 
@@ -92,13 +153,11 @@ class Box():
         self.can_add_to_score = True
 
     def update(self):
-        if player.has_been_hit: return  
-
-        self.rect.left -= self.speed * clock.get_time() / 1000
+        self.rect.left -= self.speed
         if self.rect.left < -self.rect.width: 
-            player.score += 1
-            boxHandler.spawn_box()
-            boxHandler.boxes.remove(self)
+            game.player.score += 1
+            game.box_handler.spawn_box()
+            game.box_handler.boxes.remove(self)
 
 class BoxHandler():
     BOX_BASE_SPEED = 5
@@ -129,80 +188,44 @@ class BoxHandler():
             case 1:
                 newBox.rect.width = 96
                 newBox.rect.height = 96
-                newBox.sprite = pygame.image.load("assets/sprites/square_box.png")
+                newBox.sprite = game.SQUARE_BOX_SPRITE
             # Big box
             case 2:
                 newBox.rect.width = 128
                 newBox.rect.height = 128
-                newBox.sprite = pygame.image.load("assets/sprites/square_box.png")
+                newBox.sprite = game.SQUARE_BOX_SPRITE
 
             # Tall box
             case 3: 
                 newBox.rect.width = 64
                 newBox.rect.height = 128
-                newBox.sprite = pygame.image.load("assets/sprites/tall_box.png")
+                newBox.sprite = game.TALL_BOX_SPRITE
 
             # Long box
             case 4:
                 newBox.rect.width = 160
                 newBox.rect.height = 64
-                newBox.sprite = pygame.image.load("assets/sprites/long_box.png")
+                newBox.sprite = game.LONG_BOX_SPRITE
         
         newBox.sprite = pygame.transform.scale(newBox.sprite, (newBox.rect.width, newBox.rect.height))
-        newBox.rect.left = WINDOW_WIDTH
-        newBox.rect.top = floor.top - newBox.rect.height
+        newBox.rect.left = game.WINDOW_WIDTH
+        newBox.rect.top = game.floor.top - newBox.rect.height
         self.boxes.append(newBox)
 
-# Set up game objects
-floor = pygame.Rect(0, WINDOW_HEIGHT - 150, WINDOW_WIDTH, 150)
-
-player = Player(125, floor.top - Player.HEIGHT)
-
-boxHandler = BoxHandler()
-boxHandler.spawn_box()
-
-# Game functions
-def draw_scene():
-    window.fill(BACKGROUND_COLOR)
-    pygame.draw.rect(window, FLOOR_COLOR, floor)
-
-def draw_UI():
-    score_text = FONT.render(f"Score: {player.score}", True, TEXT_COLOR)
-    window.blit(score_text, (TEXT_OFFSET_FROM_SCREEN, TEXT_OFFSET_FROM_SCREEN))
-
-    speed_increase_text = FONT.render(f"Boxes until speed increase: {boxHandler.calculate_boxes_until_speed_change()}", True, TEXT_COLOR)
-    window.blit(speed_increase_text, (TEXT_OFFSET_FROM_SCREEN, TEXT_OFFSET_FROM_SCREEN * 2 + score_text.get_size()[1]))
-
-def update_objects():
-    player.update()
-    window.blit(player.sprite, player.rect)
-
-    currentBox = boxHandler.boxes[0]
-    currentBox.update()
-    window.blit(currentBox.sprite, currentBox.rect)
-
-    if currentBox.rect.colliderect(player.rect): player.has_been_hit = True
+game = Game()
+game.initialize()
 
 # Start game loop
-game_running = True
-clock = pygame.time.Clock()
-while game_running:
-    # Limit framerate to specified FPS
-    # delta_time = get_delta_time()
-    # accumulator += delta_time
+while game.running:
+    delta_time = game.get_delta_time()
+    game.accumulator += delta_time
 
-    # if accumulator < game_update_rate: continue
-    # else: accumulator -= game_update_rate
-
-    clock.tick(FPS)
+    if game.accumulator < game.UPDATE_RATE: continue
+    else: game.accumulator -= game.UPDATE_RATE
 
     for event in pygame.event.get():
-        if event.type == pygame.QUIT: game_running = False
+        if event.type == pygame.QUIT: game.running = False
 
-    draw_scene()
-    draw_UI()
-    update_objects()
-
-    pygame.display.flip()
+    game.update()
 
 pygame.quit()
