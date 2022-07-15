@@ -94,7 +94,7 @@ class Box():
     def update(self):
         if player.has_been_hit: return  
 
-        self.rect.left -= self.speed
+        self.rect.left -= self.speed * clock.get_time() / 1000
         if self.rect.left < -self.rect.width: 
             player.score += 1
             boxHandler.spawn_box()
@@ -185,13 +185,16 @@ def update_objects():
 
 # Start game loop
 game_running = True
+clock = pygame.time.Clock()
 while game_running:
     # Limit framerate to specified FPS
-    delta_time = get_delta_time()
-    accumulator += delta_time
+    # delta_time = get_delta_time()
+    # accumulator += delta_time
 
-    if accumulator < game_update_rate: continue
-    else: accumulator -= game_update_rate
+    # if accumulator < game_update_rate: continue
+    # else: accumulator -= game_update_rate
+
+    clock.tick(FPS)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT: game_running = False
