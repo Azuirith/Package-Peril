@@ -11,7 +11,7 @@ class Game():
 
     # Text configuration
     FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 24)
-    TEXT_OFFSET_FROM_WINDOW = 16
+    TEXT_OFFSET_FROM_BORDER = 16
 
     # Update rate configuration
     FPS = 144
@@ -71,15 +71,22 @@ class Game():
         self.window.blit(self.box_handler.boxes[0].sprite, self.box_handler.boxes[0].rect)
 
     def draw_UI(self):
-        score_text = self.FONT.render(f"Score: {self.player.score}", True, self.TEXT_COLOR)
-        self.window.blit(score_text, (self.TEXT_OFFSET_FROM_WINDOW, self.TEXT_OFFSET_FROM_WINDOW))
+        # The unnecessary amount of variables here is to shorten the lines because they were originally
+        # too long
+        score_text_string = f"Score: {self.player.score}"
+        score_text_UI = self.FONT.render(score_text_string, True, self.TEXT_COLOR)
+        score_text_x = self.TEXT_OFFSET_FROM_BORDER
+        score_text_y = self.TEXT_OFFSET_FROM_BORDER
+        self.window.blit(score_text_UI, (score_text_x, score_text_y))
 
-        speed_increase_text = self.FONT.render(f"Boxes until speed increase: {self.box_handler.calculate_boxes_until_speed_change()}", True, self.TEXT_COLOR)
-        self.window.blit(speed_increase_text, (self.TEXT_OFFSET_FROM_WINDOW, self.TEXT_OFFSET_FROM_WINDOW * 2 + score_text.get_size()[1]))
+        speed_text_string = f"Boxes until speed increase: {self.box_handler.boxes_until_speed_change()}"
+        speed_text_UI = self.FONT.render(speed_text_string, True, self.TEXT_COLOR)
+        speed_text_x = self.TEXT_OFFSET_FROM_BORDER
+        speed_text_y = self.TEXT_OFFSET_FROM_BORDER * 2 + score_text_UI.get_size()[1]
+        self.window.blit(speed_text_UI, (speed_text_x, speed_text_y))
 
     def update_objects(self):
         if self.player.has_been_hit: return
-
         self.player.update()
 
         currentBox = self.box_handler.boxes[0]
@@ -117,13 +124,8 @@ class Player():
         
         self.score = 1
 
-    def check_for_ground(self):
-        if self.rect.bottom - self.y_velocity > game.floor.top:
-            self.rect.bottom = game.floor.top
-            self.y_velocity = 0
-            return True
-        
-        return False
+    def will_hit_ground(self):
+        return self.rect.bottom - self.y_velocity > game.floor.top
 
     def jump(self):
         self.is_grounded = False
@@ -136,24 +138,27 @@ class Player():
         if keys_pressed[pygame.K_SPACE] and self.is_grounded: self.jump() 
 
         self.y_velocity -= self.GRAVITY_FORCE * game.UPDATE_RATE
-        self.is_grounded = self.check_for_ground()
-        if not self.is_grounded: self.rect.top -= self.y_velocity 
-
+        self.is_grounded = self.will_hit_ground()
+        if self.is_grounded: 
+            self.rect.bottom = game.floor.top
+            self.y_velocity = 0
+        else: 
+            self.rect.top -= self.y_velocity 
+            
 class Box():
     # Initializes the box with default values so that the method in the BoxHandler can customize the box
     def __init__(self, speed):
         self.sprite = None
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.speed = speed
-
         self.can_add_to_score = True
 
     def update(self):
         self.rect.left -= self.speed
         if self.rect.left < -self.rect.width: 
             game.player.score += 1
-            game.box_handler.spawn_box()
             game.box_handler.boxes.remove(self)
+            game.box_handler.spawn_box()
 
 class BoxHandler():
     BOX_BASE_SPEED = 5
@@ -166,7 +171,7 @@ class BoxHandler():
         self.boxes_since_frequency_changed = 0 
         self.times_speed_changed = 0
 
-    def calculate_boxes_until_speed_change(self):
+    def boxes_until_speed_change(self):
         return self.SPEED_CHANGE_FREQUENCY - self.boxes_since_frequency_changed
 
     def spawn_box(self):
