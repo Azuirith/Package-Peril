@@ -36,7 +36,7 @@ class Game():
         self.running = True
         self.accumulator = 0
 
-        self.on_main_menu = False
+        self.on_main_menu = True
 
         self.previous_time = time.time()  # Used for the get_delta_time method
 
@@ -73,19 +73,33 @@ class Game():
         self.window.blit(self.box_handler.boxes[0].sprite, self.box_handler.boxes[0].rect)
 
     def draw_UI(self):
-        # The unnecessary amount of variables here is to shorten the lines because they were originally
-        # too long
-        score_text_string = f"Score: {self.player.score}"
-        score_text_UI = self.FONT.render(score_text_string, True, self.TEXT_COLOR)
-        score_text_x = self.TEXT_OFFSET_FROM_BORDER
-        score_text_y = self.TEXT_OFFSET_FROM_BORDER
-        self.window.blit(score_text_UI, (score_text_x, score_text_y))
+        if self.on_main_menu:
+            title_text_string = self.TITLE
+            title_text_font = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 72)
+            title_text_UI = title_text_font.render(title_text_string, True, self.TEXT_COLOR)
+            title_text_x = self.WINDOW_WIDTH / 2 - title_text_UI.get_width() / 2
+            title_text_y = self.WINDOW_HEIGHT / 2 - title_text_UI.get_height() * 1.5
+            self.window.blit(title_text_UI, (title_text_x, title_text_y))
 
-        speed_text_string = f"Boxes until speed increase: {self.box_handler.boxes_until_speed_change()}"
-        speed_text_UI = self.FONT.render(speed_text_string, True, self.TEXT_COLOR)
-        speed_text_x = self.TEXT_OFFSET_FROM_BORDER
-        speed_text_y = self.TEXT_OFFSET_FROM_BORDER * 2 + score_text_UI.get_size()[1]
-        self.window.blit(speed_text_UI, (speed_text_x, speed_text_y))
+            play_text_string = "Press SPACE to start"
+            play_text_UI = self.FONT.render(play_text_string, True, self.TEXT_COLOR)
+            play_text_x = self.WINDOW_WIDTH / 2 - play_text_UI.get_width() / 2
+            play_text_y = self.WINDOW_HEIGHT / 2 - play_text_UI.get_height() / 2
+            self.window.blit(play_text_UI, (play_text_x, play_text_y))
+        else:
+            # The unnecessary amount of variables here is to shorten the lines because they were originally
+            # too long
+            score_text_string = f"Score: {self.player.score}"
+            score_text_UI = self.FONT.render(score_text_string, True, self.TEXT_COLOR)
+            score_text_x = self.TEXT_OFFSET_FROM_BORDER
+            score_text_y = self.TEXT_OFFSET_FROM_BORDER
+            self.window.blit(score_text_UI, (score_text_x, score_text_y))
+
+            speed_text_string = f"Boxes until speed increase: {self.box_handler.boxes_until_speed_change()}"
+            speed_text_UI = self.FONT.render(speed_text_string, True, self.TEXT_COLOR)
+            speed_text_x = self.TEXT_OFFSET_FROM_BORDER
+            speed_text_y = self.TEXT_OFFSET_FROM_BORDER * 2 + score_text_UI.get_size()[1]
+            self.window.blit(speed_text_UI, (speed_text_x, speed_text_y))
 
     def update_objects(self):
         if self.player.has_been_hit: return
@@ -99,10 +113,23 @@ class Game():
         self.box_handler.spawn_box()
 
     def update(self):
+        delta_time = self.get_delta_time()
+        self.accumulator += delta_time
+
+        if self.accumulator < self.UPDATE_RATE: return
+        else: self.accumulator -= self.UPDATE_RATE
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: self.running = False
+
         self.draw_scene()
         self.draw_UI()
-        self.update_objects()
-        self.draw_objects()
+
+        if self.on_main_menu:
+            if pygame.key.get_pressed()[pygame.K_SPACE]: self.on_main_menu = False
+        else:
+            self.update_objects()
+            self.draw_objects()
         
         pygame.display.flip()
 
@@ -219,16 +246,6 @@ class BoxHandler():
 game = Game()
 game.initialize()
 
-while game.running:
-    delta_time = game.get_delta_time()
-    game.accumulator += delta_time
-
-    if game.accumulator < game.UPDATE_RATE: continue
-    else: game.accumulator -= game.UPDATE_RATE
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT: game.running = False
-
-    game.update()
+while game.running: game.update()
 
 pygame.quit()
