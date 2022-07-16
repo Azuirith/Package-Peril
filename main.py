@@ -36,6 +36,8 @@ class Game():
         self.running = True
         self.accumulator = 0
 
+        self.on_main_menu = False
+
         self.previous_time = time.time()  # Used for the get_delta_time method
 
     def get_delta_time(self):
@@ -101,7 +103,7 @@ class Game():
         self.draw_UI()
         self.update_objects()
         self.draw_objects()
-
+        
         pygame.display.flip()
 
 class Player():
@@ -121,7 +123,6 @@ class Player():
         self.has_been_hit = False
         
         self.y_velocity = 0
-        
         self.score = 1
 
     def will_hit_ground(self):
@@ -167,22 +168,24 @@ class BoxHandler():
 
     def __init__(self):
         self.boxes = []
-        self.current_box_speed = self.BOX_BASE_SPEED
-        self.boxes_since_frequency_changed = 0 
-        self.times_speed_changed = 0
+        self.current_speed = self.BOX_BASE_SPEED
+        self.boxes_since_speed_changed = 0 
+        self.speed_change_counter = 0
 
     def boxes_until_speed_change(self):
-        return self.SPEED_CHANGE_FREQUENCY - self.boxes_since_frequency_changed
+        return self.SPEED_CHANGE_FREQUENCY - self.boxes_since_speed_changed
 
     def spawn_box(self):
-        self.boxes_since_frequency_changed += 1
-        if self.boxes_since_frequency_changed >= self.SPEED_CHANGE_FREQUENCY:
-            self.times_speed_changed += 1
-            self.boxes_since_frequency_changed = 0
-            self.current_box_speed = self.BOX_MAX_SPEED * (self.times_speed_changed / (self.times_speed_changed + self.BOX_MAX_SPEED)) + self.BOX_BASE_SPEED  # 10 is an arbitrary number
+        self.boxes_since_speed_changed += 1
+        if self.boxes_since_speed_changed >= self.SPEED_CHANGE_FREQUENCY:
+            self.speed_change_counter += 1
+            self.boxes_since_speed_changed = 0
+
+            box_speed_increment = (self.speed_change_counter / (self.speed_change_counter + self.BOX_MAX_SPEED))
+            self.current_speed = self.BOX_MAX_SPEED * box_speed_increment + self.BOX_BASE_SPEED  # 10 is an arbitrary number
  
         box_type = random.randint(1, 4)
-        newBox = Box(self.current_box_speed)
+        newBox = Box(self.current_speed)
 
         match box_type:
             # Medium box
