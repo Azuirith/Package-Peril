@@ -1,3 +1,4 @@
+import math
 import random
 import time
 import pygame
@@ -5,12 +6,12 @@ pygame.init()
 
 class Game():
     # Window configuration
-    WINDOW_WIDTH = 1280
-    WINDOW_HEIGHT = 720
+    WINDOW_WIDTH, WINDOW_HEIGHT = 1280, 720
     TITLE = "Package Peril"
 
-    # Text configuration
-    FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 24)
+    # Text configuration (The pygame font system is weird)
+    NORMAL_FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 24)
+    LARGE_FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 72)
     TEXT_OFFSET_FROM_BORDER = 16
 
     # Update rate configuration
@@ -28,6 +29,8 @@ class Game():
     TEXT_COLOR = (255, 255, 255)
 
     def __init__(self):
+        self.on_main_menu = True
+
         self.window = self.create_window()
         self.floor = self.create_floor()
         self.player = self.create_player()
@@ -35,8 +38,6 @@ class Game():
 
         self.running = True
         self.accumulator = 0
-
-        self.on_main_menu = True
 
         self.previous_time = time.time()  # Used for the get_delta_time method
 
@@ -70,19 +71,18 @@ class Game():
 
     def draw_objects(self):
         self.window.blit(self.player.sprite, self.player.rect)
-        self.window.blit(self.box_handler.boxes[0].sprite, self.box_handler.boxes[0].rect)
+        self.window.blit(self.box_handler.current_box.sprite, self.box_handler.current_box.rect)
 
     def draw_UI(self):
         if self.on_main_menu:
             title_text_string = self.TITLE
-            title_text_font = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 72)
-            title_text_UI = title_text_font.render(title_text_string, True, self.TEXT_COLOR)
+            title_text_UI = self.LARGE_FONT.render(title_text_string, True, self.TEXT_COLOR)
             title_text_x = self.WINDOW_WIDTH / 2 - title_text_UI.get_width() / 2
             title_text_y = self.WINDOW_HEIGHT / 2 - title_text_UI.get_height() * 1.5
             self.window.blit(title_text_UI, (title_text_x, title_text_y))
 
             play_text_string = "Press SPACE to start"
-            play_text_UI = self.FONT.render(play_text_string, True, self.TEXT_COLOR)
+            play_text_UI = self.NORMAL_FONT.render(play_text_string, True, self.TEXT_COLOR)
             play_text_x = self.WINDOW_WIDTH / 2 - play_text_UI.get_width() / 2
             play_text_y = self.WINDOW_HEIGHT / 2 - play_text_UI.get_height() / 2
             self.window.blit(play_text_UI, (play_text_x, play_text_y))
@@ -90,13 +90,13 @@ class Game():
             # The unnecessary amount of variables here is to shorten the lines because they were originally
             # too long
             score_text_string = f"Score: {self.player.score}"
-            score_text_UI = self.FONT.render(score_text_string, True, self.TEXT_COLOR)
+            score_text_UI = self.NORMAL_FONT.render(score_text_string, True, self.TEXT_COLOR)
             score_text_x = self.TEXT_OFFSET_FROM_BORDER
             score_text_y = self.TEXT_OFFSET_FROM_BORDER
             self.window.blit(score_text_UI, (score_text_x, score_text_y))
 
             speed_text_string = f"Boxes until speed increase: {self.box_handler.boxes_until_speed_change()}"
-            speed_text_UI = self.FONT.render(speed_text_string, True, self.TEXT_COLOR)
+            speed_text_UI = self.NORMAL_FONT.render(speed_text_string, True, self.TEXT_COLOR)
             speed_text_x = self.TEXT_OFFSET_FROM_BORDER
             speed_text_y = self.TEXT_OFFSET_FROM_BORDER * 2 + score_text_UI.get_size()[1]
             self.window.blit(speed_text_UI, (speed_text_x, speed_text_y))
@@ -105,14 +105,14 @@ class Game():
         if self.player.has_been_hit: return
         self.player.update()
 
-        currentBox = self.box_handler.boxes[0]
-        currentBox.update()
-        if currentBox.rect.colliderect(self.player.rect): self.player.has_been_hit = True
+        self.box_handler.current_box.update()
+        if self.box_handler.current_box.rect.colliderect(self.player.rect): self.player.has_been_hit = True
 
     def initialize(self):
         self.box_handler.spawn_box()
 
     def update(self):
+        # Creates fixed update rate
         delta_time = self.get_delta_time()
         self.accumulator += delta_time
 
@@ -125,8 +125,10 @@ class Game():
         self.draw_scene()
         self.draw_UI()
 
+        # Updates the game based on whether it's on the main menu or not
         if self.on_main_menu:
-            if pygame.key.get_pressed()[pygame.K_SPACE]: self.on_main_menu = False
+            keys_pressed = pygame.key.get_pressed()
+            if keys_pressed[pygame.K_SPACE]: self.on_main_menu = False
         else:
             self.update_objects()
             self.draw_objects()
@@ -135,6 +137,7 @@ class Game():
 
 class Player():
     WIDTH, HEIGHT = 64, 64
+
     JUMP_FORCE = 10
     GRAVITY_FORCE = 35
 
@@ -150,6 +153,7 @@ class Player():
         self.has_been_hit = False
         
         self.y_velocity = 0
+
         self.score = 1
 
     def will_hit_ground(self):
@@ -185,7 +189,6 @@ class Box():
         self.rect.left -= self.speed
         if self.rect.left < -self.rect.width: 
             game.player.score += 1
-            game.box_handler.boxes.remove(self)
             game.box_handler.spawn_box()
 
 class BoxHandler():
@@ -194,13 +197,17 @@ class BoxHandler():
     SPEED_CHANGE_FREQUENCY = 5
 
     def __init__(self):
-        self.boxes = []
+        self.current_box = None
         self.current_speed = self.BOX_BASE_SPEED
         self.boxes_since_speed_changed = 0 
         self.speed_change_counter = 0
 
     def boxes_until_speed_change(self):
         return self.SPEED_CHANGE_FREQUENCY - self.boxes_since_speed_changed
+
+    def add_randomness_to_speed(self):
+        speed_randomness = random.randint(math.floor(-self.current_speed / 5), math.floor(self.current_speed / 5))
+        return speed_randomness
 
     def spawn_box(self):
         self.boxes_since_speed_changed += 1
@@ -210,38 +217,38 @@ class BoxHandler():
 
             box_speed_increment = (self.speed_change_counter / (self.speed_change_counter + self.BOX_MAX_SPEED))
             self.current_speed = self.BOX_MAX_SPEED * box_speed_increment + self.BOX_BASE_SPEED  # 10 is an arbitrary number
- 
+
         box_type = random.randint(1, 4)
-        newBox = Box(self.current_speed)
+        new_box = Box(self.current_speed + self.add_randomness_to_speed())
 
         match box_type:
             # Medium box
             case 1:
-                newBox.rect.width = 96
-                newBox.rect.height = 96
-                newBox.sprite = game.SQUARE_BOX_SPRITE
+                new_box.rect.width = 96
+                new_box.rect.height = 96
+                new_box.sprite = game.SQUARE_BOX_SPRITE
             # Big box
             case 2:
-                newBox.rect.width = 128
-                newBox.rect.height = 128
-                newBox.sprite = game.SQUARE_BOX_SPRITE
+                new_box.rect.width = 128
+                new_box.rect.height = 128
+                new_box.sprite = game.SQUARE_BOX_SPRITE
 
             # Tall box
             case 3: 
-                newBox.rect.width = 64
-                newBox.rect.height = 128
-                newBox.sprite = game.TALL_BOX_SPRITE
+                new_box.rect.width = 64
+                new_box.rect.height = 128
+                new_box.sprite = game.TALL_BOX_SPRITE
 
             # Long box
             case 4:
-                newBox.rect.width = 160
-                newBox.rect.height = 64
-                newBox.sprite = game.LONG_BOX_SPRITE
+                new_box.rect.width = 160
+                new_box.rect.height = 64
+                new_box.sprite = game.LONG_BOX_SPRITE
         
-        newBox.sprite = pygame.transform.scale(newBox.sprite, (newBox.rect.width, newBox.rect.height))
-        newBox.rect.left = game.WINDOW_WIDTH
-        newBox.rect.top = game.floor.top - newBox.rect.height
-        self.boxes.append(newBox)
+        new_box.sprite = pygame.transform.scale(new_box.sprite, (new_box.rect.width, new_box.rect.height))
+        new_box.rect.left = game.WINDOW_WIDTH
+        new_box.rect.top = game.floor.top - new_box.rect.height
+        self.current_box = new_box
 
 game = Game()
 game.initialize()
