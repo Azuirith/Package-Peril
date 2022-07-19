@@ -11,6 +11,7 @@ class Game():
 
     # Text configuration (The pygame font system is weird)
     NORMAL_FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 24)
+    MEDIUM_FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 48)
     LARGE_FONT = pygame.font.Font("assets/fonts/Bungee-Regular.ttf", 72)
     TEXT_OFFSET_FROM_BORDER = 16
 
@@ -54,16 +55,13 @@ class Game():
         return window
 
     def create_floor(self):
-        floor = pygame.Rect(0, self.WINDOW_HEIGHT - 150, self.WINDOW_WIDTH, 150)
-        return floor
+        return pygame.Rect(0, self.WINDOW_HEIGHT - 150, self.WINDOW_WIDTH, 150)
 
     def create_player(self):
-        player = Player(125, self.floor.top - Player.HEIGHT)
-        return player
+        return Player(125, self.floor.top - Player.HEIGHT)
     
     def create_box_handler(self):
-        box_handler = BoxHandler()
-        return box_handler
+        return BoxHandler()
 
     def draw_scene(self):
         self.window.fill(self.BACKGROUND_COLOR)
@@ -101,6 +99,13 @@ class Game():
             speed_text_y = self.TEXT_OFFSET_FROM_BORDER * 2 + score_text_UI.get_size()[1]
             self.window.blit(speed_text_UI, (speed_text_x, speed_text_y))
 
+            if self.player.has_been_hit:
+                restart_text_string = "Press R to restart"
+                restart_text_UI = self.MEDIUM_FONT.render(restart_text_string, True, self.TEXT_COLOR)
+                restart_text_x = self.WINDOW_WIDTH / 2 - restart_text_UI.get_width() / 2
+                restart_text_y = self.WINDOW_HEIGHT / 2 - restart_text_UI.get_height() / 2
+                self.window.blit(restart_text_UI, (restart_text_x, restart_text_y))
+
     def update_objects(self):
         if self.player.has_been_hit: return
         self.player.update()
@@ -110,6 +115,11 @@ class Game():
 
     def initialize(self):
         self.box_handler.spawn_box()
+
+    def restart(self):
+        self.player.score = 1
+        self.player.rect.bottom = self.floor.top
+        self.box_handler.reset()
 
     def update(self):
         # Creates fixed update rate
@@ -125,11 +135,17 @@ class Game():
         self.draw_scene()
         self.draw_UI()
 
+        keys_pressed = pygame.key.get_pressed()
+
         # Updates the game based on whether it's on the main menu or not
         if self.on_main_menu:
-            keys_pressed = pygame.key.get_pressed()
             if keys_pressed[pygame.K_SPACE]: self.on_main_menu = False
         else:
+            if self.player.has_been_hit: 
+                if keys_pressed[pygame.K_r]: 
+                    self.restart()
+                    self.player.has_been_hit = False
+                
             self.update_objects()
             self.draw_objects()
         
@@ -206,8 +222,14 @@ class BoxHandler():
         return self.SPEED_CHANGE_FREQUENCY - self.boxes_since_speed_changed
 
     def add_randomness_to_speed(self):
-        speed_randomness = random.randint(math.floor(-self.current_speed / 5), math.floor(self.current_speed / 5))
+        speed_randomness = random.randint(math.floor(-self.current_speed / 6), math.floor(self.current_speed / 6))
         return speed_randomness
+
+    def reset(self):
+        self.current_speed = self.BOX_BASE_SPEED
+        self.boxes_since_speed_changed = 0
+        self.speed_change_counter = 0
+        self.spawn_box()
 
     def spawn_box(self):
         self.boxes_since_speed_changed += 1
